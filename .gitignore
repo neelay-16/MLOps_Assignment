@@ -1,6 +1,9 @@
 .git
 .env
 .DS_Store
+.dvc
+.dvcignore
+artifacts
 airflow_settings.yaml
 __pycache__/
 astro
