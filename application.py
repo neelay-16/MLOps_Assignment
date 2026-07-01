@@ -61,7 +61,7 @@ class PredictionRequest(BaseModel):
 @app.get("/")
 def serve_frontend():
     """Serve the HTML frontend"""
-    return FileResponse("frontend/index.html")
+    return FileResponse("templates/index.html")
 
 
 @app.get("/health")
