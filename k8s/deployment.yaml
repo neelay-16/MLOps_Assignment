@@ -18,8 +18,13 @@ spec:
         image: gcr.io/infra-window-453718-m0/mlops-project1:latest
         ports:
         - containerPort: 8000
-        command: ["uvicorn"]                    # ← Add this
-        args: ["api.main:app", "--host", "0.0.0.0", "--port", "8000"]   # ← Add this
+        command: ["uvicorn"]
+        args: 
+          - "api.main:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
         resources:
           requests:
             memory: "512Mi"
