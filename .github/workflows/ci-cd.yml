@@ -1,9 +1,7 @@
-name: CI/CD Pipeline - Build & Deploy to GKE
+name: CI/CD - Build & Deploy to GKE
 
 on:
   push:
-    branches: [ main ]
-  pull_request:
     branches: [ main ]
 
 jobs:
@@ -35,11 +33,13 @@ jobs:
       run: |
         docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
 
+    # ====================== FIXED STEP ======================
     - name: Get GKE Credentials
-      run: |
-        gcloud container clusters get-credentials ${{ secrets.GKE_CLUSTER_NAME }} \
-          --zone ${{ secrets.GKE_ZONE }} \
-          --project ${{ secrets.GCP_PROJECT_ID }}
+      uses: google-github-actions/get-gke-credentials@v2
+      with:
+        cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
+        location: ${{ secrets.GKE_ZONE }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
 
     - name: Deploy to GKE
       run: |
