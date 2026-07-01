@@ -27,7 +27,7 @@ jobs:
 
     - name: Build Docker Image
       run: |
-        docker build -f Dockerfile.api -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest .
+        docker build --no-cache -f Dockerfile.api -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest .
 
     - name: Push Docker Image to GCR
       run: |

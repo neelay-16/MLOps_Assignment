@@ -1,13 +1,10 @@
+import os
 import redis
-import json
 from src.logger import get_logger
 from src.custom_exception import CustomException
 import sys
 
 logger = get_logger(__name__)
-
-
-import os
 
 class OnlineFeatureStore:
     def __init__(self):
