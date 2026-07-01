@@ -98,7 +98,7 @@ def predict(request: PredictionRequest):
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
 
-# ====================== Run Server ======================
+# ====================== Run Server ===========================
 
 if __name__ == "__main__":
-    uvicorn.run("api.main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("application:app", host="0.0.0.0", port=8000)
