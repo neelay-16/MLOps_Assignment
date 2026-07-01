@@ -18,6 +18,11 @@ spec:
         image: gcr.io/infra-window-453718-m0/mlops-project1:latest
         ports:
         - containerPort: 8000
+        env:
+        - name: REDIS_HOST
+          value: "redis"           # ← This matches the Redis service name
+        - name: REDIS_PORT
+          value: "6379"
         resources:
           requests:
             memory: "512Mi"

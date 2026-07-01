@@ -7,25 +7,25 @@ import sys
 logger = get_logger(__name__)
 
 
+import os
+
 class OnlineFeatureStore:
-    """
-    Online Feature Store for real-time predictions
-    """
-    def __init__(self, host="localhost", port=6379, db=0, password=None):
+    def __init__(self):
+        redis_host = os.getenv("REDIS_HOST", "localhost")
+        redis_port = int(os.getenv("REDIS_PORT", 6379))
+
         try:
             self.client = redis.StrictRedis(
-                host=host,
-                port=port,
-                db=db,
-                password=password,
+                host=redis_host,
+                port=redis_port,
+                db=0,
                 decode_responses=True,
                 socket_timeout=5
             )
-            # Test connection
             self.client.ping()
-            logger.info("✅ Connected to Online Feature Store (Redis)")
+            logger.info(f"✅ Connected to Redis at {redis_host}:{redis_port}")
         except Exception as e:
-            logger.error(f"Failed to connect to Redis: {e}")
+            logger.error(f"❌ Redis connection failed: {e}")
             raise CustomException("Redis connection failed", sys.exc_info())
 
     def store_patient_features(self, patient_id: str, features: dict):
