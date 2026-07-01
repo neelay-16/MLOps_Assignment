@@ -9,7 +9,7 @@ logger = get_logger(__name__)
 class OnlineFeatureStore:
     def __init__(self):
         redis_host = os.getenv("REDIS_HOST", "localhost")
-        redis_port = int(os.getenv("REDIS_PORT", 6379))
+        redis_port = int(os.getenv("REDIS_PORT_NUMBER", 6379))
 
         try:
             self.client = redis.StrictRedis(
