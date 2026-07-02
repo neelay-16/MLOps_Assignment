@@ -1,9 +1,9 @@
-name: Build & Deploy Heart Disease API
+name: Build and Deploy Heart Disease API
 
 on:
   push:
     branches: [ main ]
-  workflow_dispatch:
+  workflow_dispatch:   # Allows manual trigger from GitHub UI
 
 jobs:
   build-and-deploy:
@@ -16,10 +16,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ====================== AUTHENTICATE TO GCP ======================
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          credentials_json: ${{ secrets.GCP_KEY_FILE }}
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -27,30 +28,44 @@ jobs:
       - name: Configure Docker for GCR
         run: gcloud auth configure-docker --quiet
 
+      # ====================== BUILD DOCKER IMAGE ======================
       - name: Build Docker Image
         run: |
-          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest -f Dockerfile.api .
+          IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "Building image with tag: $IMAGE_TAG"
+          
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG -f Dockerfile.api .
+          docker tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
 
+      # ====================== PUSH DOCKER IMAGE ======================
       - name: Push Docker Image to GCR
         run: |
+          IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "Pushing image with tag: $IMAGE_TAG"
+          
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG
           docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
 
-      # ====================== ONLY APPLICATION (NOT REDIS) ======================
-      - name: Deploy Application to GKE
+      # ====================== DEPLOY TO GKE ======================
+      - name: Get GKE Credentials
         uses: google-github-actions/get-gke-credentials@v2
         with:
-          cluster_name: mlops-standard-cluster1
+          cluster_name: mlops-standard-cluster
           location: us-central1-a
           project_id: ${{ secrets.GCP_PROJECT_ID }}
 
-      - name: Apply Kubernetes Manifests
+      - name: Deploy to GKE
         run: |
-          echo "Applying latest application manifests..."
+          IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
+          echo "Deploying image with tag: $IMAGE_TAG"
+
+          # Apply latest manifests (in case there are changes in deployment.yaml or service.yaml)
           kubectl apply -f k8s/deployment.yaml --server-side --force-conflicts
           kubectl apply -f k8s/service.yaml
 
-          echo "Restarting deployment..."
-          kubectl rollout restart deployment mlops-project1 -n default
+          # Update the image in the deployment
+          kubectl set image deployment/mlops-project1 \
+            mlops-project1=gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG -n default
 
-          echo "Waiting for rollout to complete..."
+          # Wait for rollout to complete
           kubectl rollout status deployment mlops-project1 -n default
