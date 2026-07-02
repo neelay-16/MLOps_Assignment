@@ -34,9 +34,13 @@ jobs:
           IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
           echo "Building image with tag: $IMAGE_TAG"
           
-          docker build --no-cache -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG -f Dockerfile.api .
-          docker tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
-
+          docker buildx build --no-cache \
+            --tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG \
+            --file Dockerfile.api \
+            .
+          
+          docker tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG \
+                     gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
       # ====================== PUSH DOCKER IMAGE ======================
       - name: Push Docker Image to GCR
         run: |
