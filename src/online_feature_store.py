@@ -37,15 +37,28 @@ class OnlineFeatureStore:
             logger.error(f"Failed to store patient features: {e}")
 
     def get_patient_features(self, patient_id: str):
-        """Get latest features for real-time prediction"""
+        """Get latest features for real-time prediction.
+        Tries both key formats for compatibility.
+        """
         try:
-            key = f"patient:{patient_id}:features"
-            features = self.client.get(key)
+            # Try new format first: patient:5:features
+            key_new = f"patient:{patient_id}:features"
+            features = self.client.get(key_new)
+            
             if features:
                 return json.loads(features)
-            else:
-                logger.warning(f"No features found for patient {patient_id}")
-                return None
+            
+            # Fallback: Try old format: patient:5
+            key_old = f"patient:{patient_id}"
+            features = self.client.get(key_old)
+            
+            if features:
+                logger.warning(f"Found data using old key format for patient {patient_id}")
+                return json.loads(features)
+            
+            logger.warning(f"No features found for patient {patient_id}")
+            return None
+        
         except Exception as e:
             logger.error(f"Error fetching patient features: {e}")
             return None

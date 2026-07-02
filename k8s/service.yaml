@@ -1,26 +1,13 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Service
 metadata:
-  name: mlops-project1
+  name: mlops-project1-service
+  namespace: default
 spec:
-  replicas: 2
   selector:
-    matchLabels:
-      app: mlops-project1
-  template:
-    metadata:
-      labels:
-        app: mlops-project1
-    spec:
-      containers:
-      - name: mlops-project1
-        image: gcr.io/infra-window-453718-m0/mlops-project1:latest
-        ports:
-        - containerPort: 8000
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1000m"
+    app: mlops-project1
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8000
+  type: LoadBalancer
