@@ -38,7 +38,7 @@ jobs:
       # ====================== ONLY APPLICATION (NOT REDIS) ======================
       - name: Deploy Application to GKE
         run: |
-          gcloud container clusters get-credentials mlops-standard-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
+          gcloud container clusters get-credentials mlops-standard-cluster --zone us-central1-a --project ${{ secrets.GCP_PROJECT_ID }}
 
           echo "Applying latest application manifests..."
           kubectl apply -f k8s/deployment.yaml
