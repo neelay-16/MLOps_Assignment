@@ -67,14 +67,27 @@ class OnlineHeartDiseasePrediction:
             if not self.models:
                 raise Exception("No models loaded. Check artifacts/ folder.")
 
+            # ====================== Define Expected Features ======================
+            expected_features = [
+                'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs',
+                'restecg', 'thalach', 'exang', 'oldpeak', 'slope',
+                'ca', 'thal'
+            ]
+
             # ====================== Get Features ======================
             if patient_id:
                 features = self.online_store.get_patient_features(patient_id)
                 if not features:
                     raise ValueError(f"No features found for patient_id: {patient_id}")
-                input_df = pd.DataFrame([features])
+                
+                # Filter only the 13 features the model expects
+                filtered_features = {k: features.get(k, 0) for k in expected_features}
+                input_df = pd.DataFrame([filtered_features])[expected_features]
+
             elif feature_dict:
-                input_df = pd.DataFrame([feature_dict])
+                # Filter only the 13 features the model expects
+                filtered_features = {k: feature_dict.get(k, 0) for k in expected_features}
+                input_df = pd.DataFrame([filtered_features])[expected_features]
             else:
                 raise ValueError("Provide either patient_id or feature_dict")
 
@@ -86,13 +99,11 @@ class OnlineHeartDiseasePrediction:
                 
                 # Handle both old format (dict) and new format (direct model)
                 if isinstance(loaded_object, dict):
-                    # Old format: {'model': model, 'scaler': scaler}
                     model = loaded_object.get('model', loaded_object)
                     scaler = loaded_object.get('scaler', None)
                 else:
-                    # New format: direct model object
                     model = loaded_object
-                    scaler = self.scalers.get(model_name)   # For Keras
+                    scaler = self.scalers.get(model_name)
 
                 # ====================== Prediction Logic ======================
                 if model_name == "KerasNN":
@@ -102,7 +113,7 @@ class OnlineHeartDiseasePrediction:
                         scaled_input = input_df
                     prob = float(model.predict(scaled_input, verbose=0)[0][0])
                 else:
-                    # For sklearn models (Logistic Regression & Random Forest)
+                    # For sklearn models
                     prob = float(model.predict_proba(input_df)[0][1])
 
                 pred = 1 if prob > 0.5 else 0
