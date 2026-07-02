@@ -1,52 +1,51 @@
-name: CI/CD - Build & Deploy to GKE
+name: Build & Deploy Heart Disease API
 
 on:
   push:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
 
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Authenticate to Google Cloud
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_KEY_FILE }}
 
-    - name: Set up Cloud SDK
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-    - name: Configure Docker for GCR
-      run: gcloud auth configure-docker --quiet
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker --quiet
 
-    - name: Build Docker Image
-      run: |
-        docker build --no-cache -f Dockerfile.api -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest .
+      - name: Build Docker Image
+        run: |
+          docker build -t gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest -f Dockerfile.api .
 
-    - name: Push Docker Image to GCR
-      run: |
-        docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
+      - name: Push Docker Image to GCR
+        run: |
+          docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
 
-    # ====================== FIXED STEP ======================
-    - name: Get GKE Credentials
-      uses: google-github-actions/get-gke-credentials@v2
-      with:
-        cluster_name: ${{ secrets.GKE_CLUSTER_NAME }}
-        location: ${{ secrets.GKE_ZONE }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+      # ====================== ONLY APPLICATION (NOT REDIS) ======================
+      - name: Deploy Application to GKE
+        run: |
+          gcloud container clusters get-credentials mlops-standard-cluster --zone us-central1 --project ${{ secrets.GCP_PROJECT_ID }}
 
-    - name: Deploy to GKE
-      run: |
-        kubectl apply -f k8s/deployment.yaml
-        kubectl apply -f k8s/service.yaml
+          echo "Applying latest application manifests..."
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
 
-        kubectl set image deployment/mlops-project1 \
-          mlops-project1=gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
+          echo "Restarting deployment..."
+          kubectl rollout restart deployment mlops-project1 -n default
 
-        kubectl rollout status deployment/mlops-project1
+          echo "Waiting for rollout to complete..."
+          kubectl rollout status deployment mlops-project1 -n default
