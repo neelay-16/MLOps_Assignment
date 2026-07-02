@@ -3,7 +3,7 @@ import redis
 from src.logger import get_logger
 from src.custom_exception import CustomException
 import sys
-
+import json
 logger = get_logger(__name__)
 
 class OnlineFeatureStore:
@@ -38,29 +38,28 @@ class OnlineFeatureStore:
 
     def get_patient_features(self, patient_id: str):
         """Get latest features for real-time prediction.
-        Tries both key formats for compatibility.
+        Tries multiple key formats for safety.
         """
         try:
-            # Try new format first: patient:5:features
-            key_new = f"patient:{patient_id}:features"
-            features = self.client.get(key_new)
+            patient_id = str(patient_id).strip()
             
-            if features:
-                return json.loads(features)
+            # Try both possible key formats
+            possible_keys = [
+                f"patient:{patient_id}:features",   # New/correct format
+                f"patient:{patient_id}",            # Old format (fallback)
+            ]
             
-            # Fallback: Try old format: patient:5
-            key_old = f"patient:{patient_id}"
-            features = self.client.get(key_old)
+            for key in possible_keys:
+                data = self.client.get(key)
+                if data:
+                    logger.info(f"Found data using key: {key}")
+                    return json.loads(data)
             
-            if features:
-                logger.warning(f"Found data using old key format for patient {patient_id}")
-                return json.loads(features)
-            
-            logger.warning(f"No features found for patient {patient_id}")
+            logger.warning(f"No features found for patient_id: {patient_id}")
             return None
-        
+            
         except Exception as e:
-            logger.error(f"Error fetching patient features: {e}")
+            logger.error(f"Error in get_patient_features: {e}")
             return None
 
     def get_all_patient_ids(self):
