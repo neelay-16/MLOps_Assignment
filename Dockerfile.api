@@ -1,5 +1,5 @@
-# Use official Python slim image
-FROM python:3.10-slim
+# Use official Python 3.11 or 3.12 slim image to support scikit-learn 1.8.0+
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -20,5 +20,5 @@ COPY . .
 # Expose port
 EXPOSE 8000
 
-# Run the FastAPI app (from application.py)#
+# Run the FastAPI app (from application.py)
 CMD ["uvicorn", "application:app", "--host", "0.0.0.0", "--port", "8000"]
