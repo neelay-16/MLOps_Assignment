@@ -1,8 +1,6 @@
 name: Build and Deploy Heart Disease API
 
 on:
-  push:
-    branches: [ main ]
   workflow_dispatch:   # Allows manual trigger from GitHub UI
 
 jobs:

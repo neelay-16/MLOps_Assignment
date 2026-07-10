@@ -138,4 +138,4 @@ if __name__ == "__main__":
 
     # Test retrieval
     print("\nSample retrieved from Redis:")
-    print(data_processor.feature_store.get_features("train_0"))
+    print(data_processor.feature_store.get_features("0"))

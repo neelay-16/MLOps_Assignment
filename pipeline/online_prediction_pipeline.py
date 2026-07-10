@@ -21,11 +21,11 @@ class OnlineHeartDiseasePrediction:
         """Load models from artifacts/ folder"""
         logger.info("Loading models for Online Prediction...")
 
-        model_dir = "artifacts"
+        model_dir = "artifacts/models"
 
         # Logistic Regression
         try:
-            lr_path = os.path.join(model_dir, "modelslogistic_regression.pkl")
+            lr_path = os.path.join(model_dir, "logistic_regression.pkl")
             if os.path.exists(lr_path):
                 with open(lr_path, "rb") as f:
                     self.models["LogisticRegression"] = pickle.load(f)
@@ -35,7 +35,7 @@ class OnlineHeartDiseasePrediction:
 
         # Random Forest
         try:
-            rf_path = os.path.join(model_dir, "modelsrandom_forest.pkl")
+            rf_path = os.path.join(model_dir, "random_forest.pkl")
             if os.path.exists(rf_path):
                 with open(rf_path, "rb") as f:
                     self.models["RandomForest"] = pickle.load(f)
@@ -45,8 +45,8 @@ class OnlineHeartDiseasePrediction:
 
         # Keras Neural Network
         try:
-            keras_path = os.path.join(model_dir, "modelskeras_neural_network.keras")
-            scaler_path = os.path.join(model_dir, "modelskeras_scaler.pkl")
+            keras_path = os.path.join(model_dir, "keras_neural_network.keras")
+            scaler_path = os.path.join(model_dir, "keras_scaler.pkl")
 
             if os.path.exists(keras_path) and os.path.exists(scaler_path):
                 from tensorflow.keras.models import load_model
@@ -106,14 +106,22 @@ class OnlineHeartDiseasePrediction:
                     scaler = self.scalers.get(model_name)
 
                 # ====================== Prediction Logic ======================
-                if model_name == "KerasNN":
-                    if scaler:
-                        scaled_input = scaler.transform(input_df)
-                    else:
-                        scaled_input = input_df
-                    prob = float(model.predict(scaled_input, verbose=0)[0][0])
+                # 1. Prepare scaled input if the model requires a scaler
+                if scaler:
+                    scaled_arr = scaler.transform(input_df)
+                    # Convert to DataFrame to pass the correct feature names to scikit-learn
+                    scaled_input = pd.DataFrame(scaled_arr, columns=input_df.columns, index=input_df.index)
                 else:
-                    # For sklearn models
+                    scaled_input = input_df
+
+                # 2. Run inference on the correct data matrix format
+                if model_name == "KerasNN":
+                    prob = float(model.predict(scaled_input, verbose=0)[0][0])
+                elif model_name == "LogisticRegression":
+                    # FIX: Pass scaled features so probability doesn't get distorted to 1.0
+                    prob = float(model.predict_proba(scaled_input)[0][1])
+                else:
+                    # Random Forest runs on raw, unscaled features as done in your notebook
                     prob = float(model.predict_proba(input_df)[0][1])
 
                 pred = 1 if prob > 0.5 else 0

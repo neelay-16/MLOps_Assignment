@@ -48,8 +48,6 @@ class HeartDiseaseModelTraining:
                 features = self.feature_store.get_features(entity_id)
                 if features:
                     data.append(features)
-                else:
-                    logger.warning(f"Feature not found for entity_id: {entity_id}")
             return data
         except Exception as e:
             logger.error(f"Error while loading data from Redis: {e}")
@@ -105,9 +103,16 @@ class HeartDiseaseModelTraining:
             logger.info("Training Logistic Regression...")
 
             scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
+            
+            # 1. Scale the data (returns NumPy arrays)
+            X_train_scaled_arr = scaler.fit_transform(X_train)
+            X_test_scaled_arr = scaler.transform(X_test)
 
+            # 2. Convert back to DataFrame to preserve feature names
+            X_train_scaled = pd.DataFrame(X_train_scaled_arr, columns=X_train.columns, index=X_train.index)
+            X_test_scaled = pd.DataFrame(X_test_scaled_arr, columns=X_test.columns, index=X_test.index)
+
+            # 3. Fit the model (now it receives feature names!)
             lr = LogisticRegression(max_iter=1000, random_state=42)
             lr.fit(X_train_scaled, y_train)
 
@@ -230,24 +235,36 @@ class HeartDiseaseModelTraining:
     # ====================== SAVE MODELS ======================
     def save_models(self):
         try:
+            import os
+            import pickle
+            
+            # FORCE a straightforward relative directory target path
+            TARGET_PATH = "artifacts/models"
+            os.makedirs(TARGET_PATH, exist_ok=True)
+            
             saved = []
 
             # Save Logistic Regression + Scaler
             if 'LogisticRegression' in self.models:
-                with open(f"{self.model_save_path}logistic_regression.pkl", 'wb') as f:
+                file_path = os.path.join(TARGET_PATH, "logistic_regression.pkl")
+                with open(file_path, 'wb') as f:
                     pickle.dump(self.models['LogisticRegression'], f)
                 saved.append("Logistic Regression")
 
             # Save Random Forest
             if 'RandomForest' in self.models:
-                with open(f"{self.model_save_path}random_forest.pkl", 'wb') as f:
+                file_path = os.path.join(TARGET_PATH, "random_forest.pkl")
+                with open(file_path, 'wb') as f:
                     pickle.dump(self.models['RandomForest'], f)
                 saved.append("Random Forest")
 
             # Save Keras Model + Scaler
             if 'KerasNN' in self.models:
-                self.models['KerasNN']['model'].save(f"{self.model_save_path}keras_neural_network.keras")
-                with open(f"{self.model_save_path}keras_scaler.pkl", 'wb') as f:
+                keras_path = os.path.join(TARGET_PATH, "keras_neural_network.keras")
+                scaler_path = os.path.join(TARGET_PATH, "keras_scaler.pkl")
+                
+                self.models['KerasNN']['model'].save(keras_path)
+                with open(scaler_path, 'wb') as f:
                     pickle.dump(self.models['KerasNN']['scaler'], f)
                 saved.append("Keras Neural Network")
 
@@ -259,6 +276,8 @@ class HeartDiseaseModelTraining:
         except Exception as e:
             logger.error(f"Error while saving models: {e}")
             raise CustomException(str(e), sys.exc_info())
+
+
         
     def evaluate_model(self, model, X_test, y_test, model_name="Model"):
         """
@@ -291,6 +310,7 @@ class HeartDiseaseModelTraining:
     
     def run(self):
         try:
+            import os  # Make sure os is imported
             import mlflow
             import mlflow.sklearn
             import mlflow.keras
@@ -300,6 +320,9 @@ class HeartDiseaseModelTraining:
             # ====================== MLflow Setup ======================
             mlflow.set_tracking_uri("sqlite:///mlflow.db")
             mlflow.set_experiment("Heart_Disease_Prediction")
+
+            mlflow.autolog(disable=True)
+            mlflow.sklearn.autolog(disable=True) # Turn off sklearn specific autologger too
 
             with mlflow.start_run(run_name="Heart_Disease_Training"):
 
@@ -354,7 +377,7 @@ class HeartDiseaseModelTraining:
                 except Exception as e:
                     logger.error(f"Keras model failed: {e}")
 
-                # ====================== Log Best Model ======================
+                # ====================== Log Best Model to MLflow ======================
                 if best_model is not None:
                     mlflow.log_param("best_model", best_model_name)
                     mlflow.log_metric("best_roc_auc", best_roc_auc)
@@ -368,11 +391,32 @@ class HeartDiseaseModelTraining:
 
                     logger.info(f"Best Model: {best_model_name} with ROC-AUC = {best_roc_auc:.4f}")
 
+                # ====================== FIX: Save Models Locally ======================
+                # Inside your run(self) function:
+                    logger.info("Saving models locally to disk...")
+                    self.save_models() 
+
+                                    # ====================== Save Models Locally ======================
+                logger.info("Saving models locally to disk...")
+                self.save_models() 
+
+                # ====================== FORCE UPLOAD TO MLFLOW ======================
+                logger.info("Uploading local model files directly to MLflow artifacts...")
+                
+                # This bypasses the autologger entirely and uploads your folder
+                if os.path.exists("artifacts/models"):
+                    mlflow.log_artifact("artifacts/models", artifact_path="saved_models")
+                    logger.info("Successfully forced directory upload to MLflow!")
+                else:
+                    logger.warning("Local models directory not found for upload.")
+
+
                 logger.info("Model Training completed successfully with MLflow tracking.")
 
         except Exception as e:
             logger.error(f"Error in Model Training: {e}")
             raise CustomException(str(e), sys.exc_info())
+
         
 if __name__ == "__main__":
     feature_store = RedisFeatureStore()

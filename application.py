@@ -102,4 +102,10 @@ def predict(request: PredictionRequest):
 # ====================== Run Server ===========================
 
 if __name__ == "__main__":
-    uvicorn.run("application:app", host="0.0.0.0", port=8000)
+    uvicorn.run(
+        "application:app", 
+        host="0.0.0.0", 
+        port=8000, 
+        reload=True,
+        reload_excludes=["mlflow.db", "mlruns/*", "*.log", "artifacts/*"]
+    )

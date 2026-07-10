@@ -6,7 +6,7 @@ logger = get_logger(__name__)
 
 class RedisFeatureStore:
     def __init__(self, host = "localhost", port = 6379, db = 0):
-        self.client = redis.StrictRedis(host = host, port = port, db = db, decode_responses = True)
+        self.client = redis.StrictRedis(host = host, port = port, db = db, decode_responses = True, protocol = 2)
 
     def store_features(self, entity_id, features):              #entity_id means your rows
         key = f"entity: {entity_id}: features"
