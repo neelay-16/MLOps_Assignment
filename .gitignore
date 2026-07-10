@@ -2,7 +2,7 @@
 # Ignore actual data (large files)
 artifacts/raw/
 artifacts/processed/
-artifacts/models/
+
 
 # But allow .dvc files (these must be committed to Git)
 !artifacts/*.dvc
