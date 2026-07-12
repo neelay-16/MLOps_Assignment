@@ -1,12 +1,10 @@
-pandas
-numpy
 seaborn
 matplotlib
 setuptools
 psycopg2-binary==2.9.12
-scikit-learn
+scikit-learn==1.8.0
 redis
-tensorflow
+tensorflow-cpu
 shap
 lime
 imbalanced-learn
@@ -17,3 +15,9 @@ fastapi
 uvicorn[standard]
 pydantic
 python-dotenv
+joblib>=1.4.0
+numpy>=1.26.0
+pandas>=2.2.0
+pytest
+pytest-cov
+ruff

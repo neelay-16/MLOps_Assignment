@@ -1,10 +1,72 @@
-name: Build and Deploy Heart Disease API
+name: CI/CD Pipeline - Build, Test & Deploy
 
 on:
-  workflow_dispatch:   # Allows manual trigger from GitHub UI
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
 
 jobs:
+  # ====================== LINTING & TESTING ======================
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install ruff pytest pytest-cov
+
+      - name: Linting (Ruff)
+        run: ruff check .
+
+      - name: Run Unit Tests with Coverage
+        run: |
+          pytest tests/ --cov=src --cov-report=xml --cov-report=term-missing
+
+      - name: Upload Test Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            coverage.xml
+            .coverage
+
+  # ====================== MODEL TRAINING ======================
+  train-model:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Train Model
+        run: python scripts/train_model.py   # Change this path to your actual training script
+
+      - name: Upload Model Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: artifacts/
+
+  # ====================== BUILD & DEPLOY TO GKE ======================
   build-and-deploy:
+    needs: train-model
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -18,7 +80,8 @@ jobs:
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          workload_identity_provider: 'projects/898426987522/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+          service_account: 'mlops-project-3@infra-window-453718-m0.iam.gserviceaccount.com'
 
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
@@ -39,12 +102,11 @@ jobs:
           
           docker tag gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG \
                      gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
+
       # ====================== PUSH DOCKER IMAGE ======================
       - name: Push Docker Image to GCR
         run: |
           IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
-          echo "Pushing image with tag: $IMAGE_TAG"
-          
           docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG
           docker push gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:latest
 
@@ -61,13 +123,10 @@ jobs:
           IMAGE_TAG=$(echo $GITHUB_SHA | cut -c1-7)
           echo "Deploying image with tag: $IMAGE_TAG"
 
-          # Apply latest manifests (in case there are changes in deployment.yaml or service.yaml)
           kubectl apply -f k8s/deployment.yaml --server-side --force-conflicts
           kubectl apply -f k8s/service.yaml
 
-          # Update the image in the deployment
           kubectl set image deployment/mlops-project1 \
             mlops-project1=gcr.io/${{ secrets.GCP_PROJECT_ID }}/mlops-project1:$IMAGE_TAG -n default
 
-          # Wait for rollout to complete
           kubectl rollout status deployment mlops-project1 -n default

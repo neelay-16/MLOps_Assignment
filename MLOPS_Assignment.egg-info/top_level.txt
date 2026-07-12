@@ -1,4 +1,5 @@
 config
 pipeline
 src
+tests
 utils

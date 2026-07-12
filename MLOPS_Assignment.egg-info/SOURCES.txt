@@ -14,11 +14,13 @@ pipeline/prediction_pipeline.py
 pipeline/training_pipeline.py
 src/__init__.py
 src/custom_exception.py
-src/data_ingestion.py
 src/data_preprocessing.py
 src/feature_store.py
 src/logger.py
 src/model_training.py
 src/online_feature_store.py
 src/test.py
+tests/__init__.py
+tests/test_data_processing.py
+tests/test_model.py
 utils/__init__.py
